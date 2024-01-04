@@ -1072,6 +1072,8 @@ RestConfig::$ROUTE_MAP = array(
     "GET /api/patient" => function () {
         RestConfig::authorization_check("patients", "demo");
         $config = SearchQueryConfig::createConfigFromQueryParams($_GET);
+        var_dump( $_GET );
+        var_dump( $config );
         $return = (new PatientRestController())->getAll($_GET, $config);
         RestConfig::apiLog($return);
         return $return;
@@ -5224,8 +5226,67 @@ RestConfig::$ROUTE_MAP = array(
     /**
      *  @OA\Get(
      *      path="/api/appointment",
-     *      description="Retrieves all appointments",
+     *      description="Retrieves a list of appointments",
      *      tags={"standard"},
+     *      @OA\Parameter(
+     *        ref="#/components/parameters/_sort"
+     *      ),
+     *      @OA\Parameter(
+     *          name="pc_catid",
+     *          in="query",
+     *          description="The category id for the appointment.",
+     *          required=false,
+     *          @OA\Schema(
+     *              type="string"
+     *          )
+     *      ),
+     *      @OA\Parameter(
+     *          name="puuid",
+     *          in="query",
+     *          description="The first name for the patient.",
+     *          required=false,
+     *          @OA\Schema(
+     *              type="string"
+     *          )
+     *      ),
+     *      @OA\Parameter(
+     *          name="date",
+     *          in="query",
+     *          description="The date this appointment resource is scheduled.",
+     *          required=false,
+     *          @OA\Schema(
+     *              type="string"
+     *          )
+     *      ),
+     *      @OA\Parameter(
+     *          name="modified",
+     *          in="query",
+     *          description="The date this appointment resource was last modified.",
+     *          required=false,
+     *          @OA\Schema(
+     *              type="string"
+     *          )
+     *      ),
+     *      @OA\Parameter(
+     *          name="_offset",
+     *          in="query",
+     *          description="The number of records to offset from this index in the search result.",
+     *          required=false,
+     *          @OA\Schema(
+     *              type="integer"
+     *          )
+     *      ),
+     *      @OA\Parameter(
+     *          name="_limit",
+     *          in="query",
+     *          description="The maximum number of resources to return in the result set. 0 means unlimited.",
+     *          required=false,
+     *          @OA\Schema(
+     *              type="integer"
+     *              ,minimum=0
+     *              ,maximum=200
+     *          )
+     *      ),
      *      @OA\Response(
      *          response="200",
      *          ref="#/components/responses/standard"
@@ -5243,7 +5304,8 @@ RestConfig::$ROUTE_MAP = array(
      */
     "GET /api/appointment" => function () {
         RestConfig::authorization_check("patients", "appt");
-        $return = (new AppointmentRestController())->getAll();
+        $config = SearchQueryConfig::createConfigFromQueryParams($_GET);
+        $return = (new AppointmentRestController())->getAll($_GET, $config);
         RestConfig::apiLog($return);
         return $return;
     },

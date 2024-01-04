@@ -18,8 +18,12 @@ use MongoDB\Driver\Query;
 use OpenEMR\Common\Database\QueryUtils;
 use OpenEMR\Common\Uuid\UuidRegistry;
 use OpenEMR\Events\Services\ServiceDeleteEvent;
+use OpenEMR\Services\Search\ISearchField;
+use OpenEMR\Services\Search\SearchModifier;
 use OpenEMR\Services\Search\DateSearchField;
 use OpenEMR\Services\Search\FhirSearchWhereClauseBuilder;
+use OpenEMR\Services\Search\SearchQueryConfig;
+use OpenEMR\Services\Search\StringSearchField;
 use OpenEMR\Services\Search\TokenSearchField;
 use OpenEMR\Services\Search\TokenSearchValue;
 use OpenEMR\Validators\ProcessingResult;
@@ -116,6 +120,44 @@ class AppointmentService extends BaseService
         return $validator->validate($appointment);
     }
 
+    /**
+     * Returns a list of patients matching optional search criteria.
+     * Search criteria is conveyed by array where key = field/column name, value = field value.
+     * If no search criteria is provided, all records are returned.
+     *
+     * @param  $search search array parameters
+     * @param  $isAndCondition specifies if AND condition is used for multiple criteria. Defaults to true.
+     * @param $puuidBind - Optional variable to only allow visibility of the patient with this puuid.
+     * @param $config - Search Query Config has sorting, pagination and other query configuration options for the request.
+     * @return ProcessingResult which contains validation messages, internal error messages, and the data
+     * payload.
+     */
+    public function getAll($search = array(), $isAndCondition = true, $puuidBind = null, SearchQueryConfig $config = null)
+    {
+        $querySearch = [];
+        if (!empty($search)) {
+            if (isset($puuidBind)) {
+                $querySearch['uuid'] = new TokenSearchField('uuid', $puuidBind);
+            } elseif (isset($search['uuid'])) {
+                $querySearch['uuid'] = new TokenSearchField('uuid', $search['uuid']);
+            }
+            $wildcardFields = array('fname', 'mname', 'lname', 'street', 'city', 'state','postal_code','title'
+            , 'contact_address_line1', 'contact_address_city', 'contact_address_state','contact_address_postalcode');
+            foreach ($wildcardFields as $field) {
+                if (isset($search[$field])) {
+                    $querySearch[$field] = new StringSearchField($field, $search[$field], SearchModifier::CONTAINS, $isAndCondition);
+                }
+            }
+            // for backwards compatability, we will make sure we do exact matches on the keys using string comparisons if no object is used
+            foreach ($search as $field => $key) {
+                if (!isset($querySearch[$field]) && !($key instanceof ISearchField)) {
+                    $querySearch[$field] = new StringSearchField($field, $search[$field], SearchModifier::EXACT, $isAndCondition);
+                }
+            }
+        }
+        return $this->search($querySearch, $isAndCondition, $config);
+    }
+
     public function search($search, $isAndCondition = true)
     {
         $sql = "SELECT pce.pc_eid,
@@ -138,6 +180,8 @@ class AppointmentService extends BaseService
                        pce.pc_catid,
                        pce.pc_pid,
                        pce.pc_duration,
+                       pcc.pc_catname as pc_catname,
+                       pcc.pc_cattype as pc_cattype,
                        f1.name as facility_name,
                        f1_map.uuid as facility_uuid,
                        f2.name as billing_location_name,
@@ -173,6 +217,7 @@ class AppointmentService extends BaseService
                            FROM
                                 patient_data
                       ) pd ON pd.pid = pce.pc_pid
+                       LEFT JOIN openemr_postcalendar_categories as pcc ON pce.pc_catid = pcc.pc_catid
                        LEFT JOIN users as providers ON pce.pc_aid = providers.id";
 
         $whereClause = FhirSearchWhereClauseBuilder::build($search, $isAndCondition);
@@ -212,6 +257,8 @@ class AppointmentService extends BaseService
                        pce.pc_billing_location,
                        pce.pc_catid,
                        pce.pc_pid,
+                       pcc.pc_catname as pc_catname,
+                       pcc.pc_cattype as pc_cattype,
                        f1.name as facility_name,
                        f1_map.uuid as facility_uuid,
                        f2.name as billing_location_name,
@@ -222,6 +269,7 @@ class AppointmentService extends BaseService
                        LEFT JOIN facility as f2 ON pce.pc_billing_location = f2.id
                        LEFT JOIN uuid_mapping as f2_map ON f2_map.target_uuid=f2.uuid AND f2_map.resource='Location'
                        LEFT JOIN patient_data as pd ON pd.pid = pce.pc_pid
+                       LEFT JOIN openemr_postcalendar_categories as pcc ON pce.pc_catid = pcc.pc_catid
                        LEFT JOIN users as providers ON pce.pc_aid = providers.id";
 
         if ($pid) {
@@ -263,6 +311,8 @@ class AppointmentService extends BaseService
                        pce.pc_room,
                        pce.pc_pid,
                        pce.pc_hometext,
+                       pcc.pc_catname as pc_catname,
+                       pcc.pc_cattype as pc_cattype,
                        f1.name as facility_name,
                        f1_map.uuid as facility_uuid,
                        f2.name as billing_location_name,
@@ -273,6 +323,7 @@ class AppointmentService extends BaseService
                        LEFT JOIN facility as f2 ON pce.pc_billing_location = f2.id
                        LEFT JOIN uuid_mapping as f2_map ON f2_map.target_uuid=f2.uuid AND f2_map.resource='Location'
                        LEFT JOIN patient_data as pd ON pd.pid = pce.pc_pid
+                       LEFT JOIN openemr_postcalendar_categories as pcc ON pce.pc_catid = pcc.pc_catid
                        LEFT JOIN users as providers ON pce.pc_aid = providers.id
                        WHERE pce.pc_eid = ?";
 

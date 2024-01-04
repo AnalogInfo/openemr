@@ -368,6 +368,7 @@ class PatientService extends BaseService
                 }
             }
         }
+
         return $this->search($querySearch, $isAndCondition, $config);
     }
 

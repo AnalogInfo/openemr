@@ -16,11 +16,22 @@ use OpenEMR\Common\Logging\SystemLogger;
 use OpenEMR\RestControllers\RestControllerHelper;
 use OpenEMR\Services\AppointmentService;
 use OpenEMR\Services\PatientService;
+use OpenEMR\Services\Search\SearchQueryConfig;
 use OpenEMR\Validators\ProcessingResult;
 
 class AppointmentRestController
 {
     private $appointmentService;
+
+    /**
+     * White list of appointment search fields
+     */
+    private const WHITELISTED_FIELDS = array(
+        "puuid",
+        "date",
+        "pc_time",
+        "pc_catid"
+    );
 
     public function __construct()
     {
@@ -40,10 +51,11 @@ class AppointmentRestController
         return RestControllerHelper::responseHandler($data[0] ?? [], null, 200);
     }
 
-    public function getAll()
+    public function getAll($search = array(), SearchQueryConfig $config)
     {
-        $serviceResult = $this->appointmentService->getAppointmentsForPatient(null);
-        return RestControllerHelper::responseHandler($serviceResult, null, 200);
+        $validSearchFields = $this->appointmentService->filterData($search, self::WHITELISTED_FIELDS);
+        $serviceResult = $this->appointmentService->getAll($validSearchFields, true, null, $config);
+        return RestControllerHelper::handleProcessingResult($serviceResult, 200, true);
     }
 
     public function getAllForPatientByUuid($puuid)

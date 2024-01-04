@@ -2553,6 +2553,53 @@ paths:
       tags:
         - standard
       description: 'Retrieves all appointments'
+      parameters:
+        -
+          $ref: '#/components/parameters/_sort'
+        -
+          name: pc_catid
+          in: query
+          description: 'The category id for the appointment.'
+          required: false
+          schema:
+            type: string
+        -
+          name: puuid
+          in: query
+          description: 'The first name for the patient.'
+          required: false
+          schema:
+            type: string
+        -
+          name: date
+          in: query
+          description: 'The date this appointment resource is scheduled.'
+          required: false
+          schema:
+            type: string
+        -
+          name: modified
+          in: query
+          description: 'The date this appointment resource was last modified.'
+          required: false
+          schema:
+            type: string
+        -
+          name: _offset
+          in: query
+          description: 'The number of records to offset from this index in the search result.'
+          required: false
+          schema:
+            type: integer
+        -
+          name: _limit
+          in: query
+          description: 'The maximum number of resources to return in the result set. 0 means unlimited.'
+          required: false
+          schema:
+            type: integer
+            maximum: 200
+            minimum: 0
       responses:
         '200':
           $ref: '#/components/responses/standard'
